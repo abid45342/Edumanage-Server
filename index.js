@@ -30,6 +30,8 @@ async function run() {
     const userCollection = client.db("EduManageDb").collection("users");
     const teacherRequestCollection = client.db("EduManageDb").collection("teacherRequests");
     const teacherCollection = client.db("EduManageDb").collection("teacher");
+    const classCollection = client.db("EduManageDb").collection("classes");
+    
 
     // jwt releated api
     app.post('/jwt',async(req,res)=>{
@@ -110,7 +112,7 @@ async function run() {
 
       app.get('/users/role/:email',verifyToken,async(req,res)=>{
         const email = req.params.email;
-        console.log(email)
+        // console.log(email)
         if(email!== req.decoded.email )
         {
           return res.status(403).send({message:'unauthorized access'})
@@ -171,35 +173,6 @@ async function run() {
 
     //////////////////
 
-    
-  
-    // app.patch('/teacher/update-status/:id', verifyToken, async (req, res) => {
-      
-    //   const { id } = req.params;
-    //   console.log(id)
-    //   const { status } = req.body;
-
-    //   if (!['accepted', 'rejected'].includes(status)) {
-    //     return res.status(400).send({ message: 'Invalid status' });
-    //   }
-
-    //   try {
-    //     const filter = { _id: new ObjectId(id) };
-    //     const updatedDoc = {
-    //       $set: { status },
-    //     };
-
-    //     const result = await teacherRequestCollection.updateOne(filter, updatedDoc);
-    //     if (result.matchedCount === 0) {
-    //       return res.status(404).send({ message: 'Teacher not found' });
-    //     }
-
-    //     res.status(200).send({ message: 'Teacher status updated', result });
-    //   } catch (error) {
-    //     res.status(500).send({ message: 'Error updating teacher status' });
-    //   }
-    // });
-
 
     app.patch('/teacher/update-status/:email',verifyToken, async(req,res)=>{
       const email = req.params.email;
@@ -213,70 +186,96 @@ async function run() {
  
     })   
 
-    // app.post('/teacher',async (req,res)=>{
-    //   const teacher = req.body;
-    //   const result = await teacherCollection.insertOne(teacher);
-    //   res.send(result);
-    // })
 
-
-    app.post('/teacher', verifyToken, async (req, res) => {
-      const { name,email, photoURL,role } = req.body;
-       // Get the email from the query parameters
-    
-      if (!email) {
-        return res.status(400).send({ message: 'Email is required.' });
-      }
-    
-      try {
-        // Check if the teacher with the given email already exists
-        const existingTeacher = await teacherCollection.findOne({ email: email });
-    
-        if (existingTeacher) {
-          // If teacher already exists, return a message and do not insert
-          return res.status(400).send({ message: 'Teacher with this email already exists.' });
-        }
-    
-        // If teacher does not exist, proceed with insertion
-        const newTeacher = { name, email, photoURL , role };
-        await teacherCollection.insertOne(newTeacher); 
-
-
-
- const filter = {email:email}
- const updatedDoc = {
-  $set: {
-    role: 'teacher'
+app.patch('/updateRole/:email',async(req,res)=>{
+  const {email}=req.params;
+  const {role}= req.body;
+  try {
+    const result = await userCollection.updateOne(
+      { email },
+      { $set: { role } }
+    );
+    if (result.modifiedCount > 0) {
+      res.status(200).json({ message: 'User role updated successfully!' });
+    } else {
+      res.status(404).json({ error: 'User not found or role unchanged!' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error updating user role!' });
   }
-}
-const re =  await userCollection.updateOne(filter, updatedDoc);
-   
-
-
-
-
-
-
-
-
-
-
-    
-        res.status(201).send({ message: 'Teacher added successfully to the approved collection.', teacher: newTeacher });
-      } catch (error) {
-        console.error('Error adding teacher:', error);
-        res.status(500).send({ message: 'Error adding teacher.' });
-      }
-    });
-    
-
+})
 
 
 
    
+app.post('/addClass',async(req,res)=>{
+  const classData = req.body;
+  const result = await classCollection.insertOne(classData);
+  res.send(result);
+
+})
+
+
+app.get('/myclasses/:email',async(req,res)=>{
+  const {email}= req.params;
+  const classes = await classCollection.find({email}).toArray();
+  res.send(classes);
+})
+
+app.get('/classes',verifyToken,async(req,res)=>{
+
+const result = await classCollection.find().toArray();
+res.send(result); 
+})
 
 
 
+
+
+app.patch('/class/update-status/:classId',verifyToken, async(req,res)=>{
+  const id = req.params.classId;
+  const { status } = req.body;
+  console.log(status,id)
+  const filter = { _id: new ObjectId(id) };
+  const updatedDoc = {
+    $set: { status: status }
+  };
+  const result = await  classCollection.updateOne(filter, updatedDoc);
+  res.send(result);
+
+})  
+
+app.patch('/classes/:id',async(req,res)=>{
+  const id = req.params.id;
+  const updatedClass = req.body;
+  console.log(updatedClass);
+  const filter = {_id:new ObjectId(id)}
+  const updatedDoc={
+    $set:{
+      title:updatedClass.title,
+      price:updatedClass.price,
+      Description:updatedClass.Description,
+      image:updatedClass.image
+
+
+    }
+  };
+  const result = await  classCollection.updateOne(filter, updatedDoc);
+  res.send(result);
+
+
+})
+
+
+app.delete('/classes/:id',async(req,res)=>{
+
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await classCollection.deleteOne(query);
+  res.send(result);
+})
+
+ 
 
 
 
