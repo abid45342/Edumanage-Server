@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const jwt = require('jsonwebtoken');
  
 //mideware
@@ -31,6 +32,9 @@ async function run() {
     const teacherRequestCollection = client.db("EduManageDb").collection("teacherRequests");
     const teacherCollection = client.db("EduManageDb").collection("teacher");
     const classCollection = client.db("EduManageDb").collection("classes");
+    const enrollCollection = client.db("EduManageDb").collection("enrollClasses");
+    const assignmentCollection = client.db("EduManageDb").collection("assignments");
+    const submittionCollection = client.db("EduManageDb").collection("submitted");
     
 
     // jwt releated api
@@ -54,16 +58,16 @@ async function run() {
             return res.status(401).send({message : 'forbidden access'})
           }
         
-          req.decoded = decoded
+          req.decoded = decoded 
           next();
          })
-      }
-
+      } 
+ 
     app.post('/users', async (req,res)=>{
         const user = req.body;
         const query = {email:user.email}
         const existingUser = await userCollection.findOne(query);
-        if(existingUser){
+        if(existingUser){ 
           return res.send({message: 'user allready exist',insertedId:null})
         }
         const result = await userCollection.insertOne(user);
@@ -127,6 +131,22 @@ async function run() {
   
       })
 
+      // payment intent
+      app.post('/create-payment-intent',async(req,res)=>{
+        const {price}=req.body;
+        const amount = parseInt(price*100);
+   
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount:amount,
+          currency:'usd',
+          payment_method_types:['card'] 
+        });
+        console.log(amount)
+        res.send({
+          clientSecret : paymentIntent.client_secret
+        })
+      })
+
 
 
 
@@ -145,24 +165,68 @@ async function run() {
       });
 
 
-      app.get('/teacher-requests/:email', verifyToken, async (req, res) => {
-        const email = req.params.email;
-        // console.log(email);
+    //   app.get('/teacher-requests/:email', verifyToken, async (req, res) => {
+    //     const email = req.params.email;
+    //     // console.log(email);
     
-        if (email !== req.decoded.email) {
-            return res.status(403).send({ message: 'unauthorized access' });
-        }
+    //     if (email !== req.decoded.email) {
+    //         return res.status(403).send({ message: 'unauthorized access' });
+    //     }
     
-        try {
-            const query = { email: email };
-            const teacherRequests = await teacherRequestCollection.find(query).toArray();
-            res.status(200).send(teacherRequests);
-        } catch (error) {
-            console.error('Error fetching teacher requests:', error);
-            res.status(500).send({ error: 'Internal Server Error' });
-        }
-    });
+    //     try {
+    //         const query = { email: email };
+    //         const teacherRequests = await teacherRequestCollection.find(query).toArray();
+    //         res.status(200).send(teacherRequests);
+    //     } catch (error) {
+    //         console.error('Error fetching teacher requests:', error);
+    //         res.status(500).send({ error: 'Internal Server Error' });
+    //     }
+    // });
+    app.get('/teacher-requests/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      console.log(email)
+  
+      if (email !== req.decoded.email) {
+          return res.status(403).send({ message: 'unauthorized access' });
+      }
+  
+      try {
+        console.log(email)
+          const query = { email: email };
+          const teacherRequests = await teacherRequestCollection.find(query).toArray();
+  
+          // Determine the status based on the first teacher request, if available
+          console.log(teacherRequests)
+         const status= teacherRequests[0].status;
+         console.log(status)
 
+  
+          res.status(200).send({
+              teacher: teacherRequests, // All teacher request data
+              // Status of the teacher request
+              status
+          });
+      } catch (error) {
+          console.error('Error fetching teacher requests:', error);
+          res.status(500).send({ error: 'Internal Server Error' });
+      }
+  });
+  
+  
+  app.patch('/teacher-requests/resubmit/:email', async (req, res) => {
+    const email = req.params.email;
+    const reqdata = req.body;
+    const filter = { email: email };
+    console.log(reqdata);
+  
+    const updatedDoc = {
+      $set: { ...reqdata } // Make sure to spread reqdata inside $set to update the fields correctly
+    };
+  
+    const result = await teacherRequestCollection.updateOne(filter, updatedDoc);
+    res.send(result);
+  });
+  
     app.get('/teacher',verifyToken,async(req,res)=>{
       const teacherRequests = await teacherRequestCollection.find().toArray();
       res.send(teacherRequests)
@@ -208,7 +272,7 @@ app.patch('/updateRole/:email',async(req,res)=>{
 
 
    
-app.post('/addClass',async(req,res)=>{
+app.post('/addClass',async(req,res)=>{ 
   const classData = req.body;
   const result = await classCollection.insertOne(classData);
   res.send(result);
@@ -216,17 +280,87 @@ app.post('/addClass',async(req,res)=>{
 })
 
 
+app.post('/addAssignment',async(req,res)=>{
+  const id = req.params;
+  const assignment = req.body;
+  const result = await assignmentCollection.insertOne(assignment);
+  res.send(result);
+
+})
+app.get('/getAssignment/:clsid', async (req, res) => {
+  const  {clsid}  = req.params;
+  console.log(clsid) 
+  try {
+    const result = await assignmentCollection.find({ classId: clsid }).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error("Error fetching assignments:", error);
+    res.status(500).send({ error: "Failed to fetch assignments" });
+  }
+}); 
+
+app.post('/submitAssignment',async(req,res)=>{
+  const assignment = req.body;
+  const result = await submittionCollection.insertOne(assignment);
+  res.send(result);
+})
+
+app.patch("/updateAssignmentCount/:classId", async (req, res) => {
+  const { classId } = req.params;
+
+  try {
+    const filter = { _id: new ObjectId(classId) }; // Use classId here
+    const update = { $inc: { AssgnmentCount: 1 } }; // Use $inc for incrementing
+
+    const result = await classCollection.updateOne(filter, update);
+
+    if (result.modifiedCount === 1) {
+      res.status(200).send({ message: "Assignment count incremented successfully" });
+    } else {
+      res.status(404).send({ message: "Class not found" });
+    }
+  } catch (error) {
+    console.error("Error updating assignment count:", error);
+    res.status(500).send({ message: "Internal server error", error });
+  }
+});
+
+ 
+
+
+// app.patch('/class/update-status/:classId',verifyToken, async(req,res)=>{
+//   const id = req.params.classId;
+//   const { status } = req.body;
+//   console.log(status,id)
+//   const filter = { _id: new ObjectId(id) };
+//   const updatedDoc = {
+//     $set: { status: status }
+//   };
+//   const result = await  classCollection.updateOne(filter, updatedDoc);
+//   res.send(result);
+
+// }) 
+
+
+
+
 app.get('/myclasses/:email',async(req,res)=>{
   const {email}= req.params;
   const classes = await classCollection.find({email}).toArray();
-  res.send(classes);
-})
+  res.send(classes);  
+}) 
 
 app.get('/classes',verifyToken,async(req,res)=>{
 
 const result = await classCollection.find().toArray();
 res.send(result); 
 })
+app.get('/Allclass',async(req,res)=>{
+
+const result = await classCollection.find().toArray();
+res.send(result); 
+})
+
 
 
 
@@ -272,6 +406,21 @@ app.delete('/classes/:id',async(req,res)=>{
   const id = req.params.id;
   const query = { _id: new ObjectId(id) }
   const result = await classCollection.deleteOne(query);
+  res.send(result);
+})
+
+
+//
+app.post('/allEnroll',async(req,res)=>{
+  const enrollClass = req.body;
+  const result = await enrollCollection.insertOne(enrollClass);
+  res.send(result)
+})
+app.get('/myEnroll/:email',async(req,res)=>{
+  const {email}  = req.params;
+  console.log(email) 
+  
+  const result = await enrollCollection.find({email}).toArray();
   res.send(result);
 })
 
