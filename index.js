@@ -278,6 +278,27 @@ app.post('/addClass',async(req,res)=>{
   res.send(result);
 
 })
+app.get('/getEnrollmentCount/:classId', async (req, res) => {
+  const { classId } = req.params; // Extract classId from the URL parameter
+
+  try {
+    // Define the query to match the classId in your enrollment collection
+    const query = { "classDetails._id": classId }; 
+
+    // Query the enrollment collection for all matching documents
+    const result = await enrollCollection.find(query).toArray();
+
+    // Count the total number of enrollments
+    const enrollmentCount = result.length;
+
+    // Send the count as a response
+    res.json({ count: enrollmentCount });
+  } catch (error) {
+    console.error('Error fetching enrollment count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 
 app.post('/addAssignment',async(req,res)=>{
@@ -298,6 +319,41 @@ app.get('/getAssignment/:clsid', async (req, res) => {
     res.status(500).send({ error: "Failed to fetch assignments" });
   }
 }); 
+app.get('/getAssignmentCount/:classId', async (req, res) => { 
+  const { classId } = req.params; // Extract classId from the URL parameter
+
+  try { 
+    // Define the query to match assignments by classId
+    const query = { classId:classId };
+
+    // Query the assignments collection to find all matching documents
+    const result = await assignmentCollection.find(query).toArray();
+
+    // Count the total number of assignments
+    const assignmentCount = result.length;
+
+
+    // Send the count as a response
+    res.json({ count: assignmentCount });
+  } catch (error) {
+    console.error('Error fetching assignment count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/getSubmissionCount/:classId', async (req, res) => {
+  try {
+    const classId = req.params.classId; // Extract classId from the request parameters
+    const query = { classId }; // Filter submissions by classId
+    const submissionCount = await submittionCollection.countDocuments(query); // Count matching documents
+    res.send({ count: submissionCount });
+  } catch (error) {
+    console.error('Error fetching submission count:', error);
+    res.status(500).send({ error: 'Failed to fetch submission count' });
+  }
+});
+
+
 
 app.post('/submitAssignment',async(req,res)=>{
   const assignment = req.body;
