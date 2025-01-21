@@ -344,7 +344,7 @@ app.get('/getAssignmentCount/:classId', async (req, res) => {
 app.get('/getSubmissionCount/:classId', async (req, res) => {
   try {
     const classId = req.params.classId; // Extract classId from the request parameters
-    const query = { classId }; // Filter submissions by classId
+    const query = { classId }; // Filter submissions by classId 
     const submissionCount = await submittionCollection.countDocuments(query); // Count matching documents
     res.send({ count: submissionCount });
   } catch (error) {
