@@ -44,6 +44,7 @@ async function run() {
         res.send({token});
       })
 
+
       const verifyToken = (req,res,next)=>{
           // console.log('inside verify token', req.headers.authorization);
         if(!req.headers.authorization)
@@ -71,9 +72,11 @@ async function run() {
           return res.send({message: 'user allready exist',insertedId:null})
         }
         const result = await userCollection.insertOne(user);
-        res.send(result);
-      })
+        res.send(result); 
+    });
 
+ 
+  
  
       app.get('/users', verifyToken, async (req, res) => {
         const search = req.query.search || ''; // Retrieve the search query parameter
