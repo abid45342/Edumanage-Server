@@ -110,6 +110,20 @@ async function run() {
         res.send(result);
       })
 
+      app.get('/usersH',async(req,res)=>{
+        const result = await userCollection.find().toArray();
+        res.send(result);
+      })
+
+      app.get('/classesH',async(req,res)=>{
+        const result = await classCollection.find().toArray();
+        res.send(result)
+      });
+      app.get('/enrollmentsH',async(req,res)=>{
+        const result = await enrollCollection.find().toArray();
+        res.send(result)
+      });
+
 
 
       app.get('/popular-classes', async (req, res) => {
@@ -119,7 +133,7 @@ async function run() {
                 {
                     $group: {
                         _id: "$classDetails._id", // Group by class ID
-                        enrollmentCount: { $sum: 1 }, // Count the number of enrollments for each class
+                        enrollmentCount: { $sum: 1 }, // 
                         classDetails: { $first: "$classDetails" } // Get the class details
                     }
                 },
