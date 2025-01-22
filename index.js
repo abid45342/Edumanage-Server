@@ -172,17 +172,29 @@ async function run() {
                 {
                     $group: {
                         _id: "$classDetails._id", // Group by class ID
-                        enrollmentCount: { $sum: 1 }, // 
-                        classDetails: { $first: "$classDetails" } // Get the class details
+                        enrollmentCount: { $sum: 1 }, // Count the enrollments
+                        classDetails: { $first: "$classDetails" } // Retrieve class details
                     }
                 },
                 {
                     $sort: { enrollmentCount: -1 } // Sort by highest enrollment count
                 },
-                { $limit: 6 } // Limit to top 6 most popular classes
+                {
+                    $group: {
+                        _id: null, // Group everything into one to remove duplicates
+                        uniqueClasses: { $addToSet: "$classDetails" } // Ensure unique classes
+                    }
+                },
+                {
+                    $unwind: "$uniqueClasses" // Deconstruct uniqueClasses back into documents
+                },
+                {
+                    $replaceRoot: { newRoot: "$uniqueClasses" } // Use uniqueClasses as the root document
+                },
+                { $limit: 6 } // Limit to top 6 classes
             ]).toArray();
     
-            // Return the popular classes with enrollment count
+            // Return the popular classes with unique entries
             res.send(popularClasses);
         } catch (err) {
             console.error(err);
@@ -361,6 +373,9 @@ app.post('/addClass',async(req,res)=>{
   res.send(result);
 
 })
+
+
+
 app.get('/getEnrollmentCount/:classId', async (req, res) => {
   const { classId } = req.params; // Extract classId from the URL parameter
 
@@ -368,7 +383,7 @@ app.get('/getEnrollmentCount/:classId', async (req, res) => {
     // Define the query to match the classId in your enrollment collection
     const query = { "classDetails._id": classId }; 
 
-    // Query the enrollment collection for all matching documents
+    // Query the enrollment collection for all matching document
     const result = await enrollCollection.find(query).toArray();
 
     // Count the total number of enrollments
