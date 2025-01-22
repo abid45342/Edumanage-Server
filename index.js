@@ -11,6 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 
+
  
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -64,6 +65,44 @@ async function run() {
           next();
          })
       } 
+
+
+
+      const verifyAdmin = async (req, res, next) => {
+        const email = req.decoded.email;
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        const isAdmin = user?.role === 'admin';
+        if (!isAdmin) {
+          return res.status(403).send({ message: 'forbidden access' });
+        }
+        next();
+      } 
+
+      const verifyTeacher = async (req, res, next) => {
+        const email = req.decoded.email;
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        const isAdmin = user?.role === 'teacher';
+        if (!isAdmin) {
+          return res.status(403).send({ message: 'forbidden access' });
+        }
+        next();
+      } 
+
+
+      const verifyStudent = async (req, res, next) => {
+        const email = req.decoded.email;
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        const isAdmin = user?.role === 'student';
+        if (!isAdmin) {
+          return res.status(403).send({ message: 'forbidden access' });
+        }
+        next();
+      } 
+
+
  
     app.post('/users', async (req,res)=>{
         const user = req.body;
@@ -161,13 +200,10 @@ async function run() {
 
 
 
-      app.get('/users/role/:email',verifyToken,async(req,res)=>{
+      app.get('/users/role/:email',async(req,res)=>{
         const email = req.params.email;
         // console.log(email)
-        if(email!== req.decoded.email )
-        {
-          return res.status(403).send({message:'unauthorized access'})
-        }
+    
         const query = {email:email};
         const user = await userCollection.findOne(query);
         let role = '';
@@ -556,7 +592,7 @@ app.get('/feedback',async(req,res)=>{
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
