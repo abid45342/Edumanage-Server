@@ -35,12 +35,13 @@ async function run() {
     const enrollCollection = client.db("EduManageDb").collection("enrollClasses");
     const assignmentCollection = client.db("EduManageDb").collection("assignments");
     const submittionCollection = client.db("EduManageDb").collection("submitted");
+    const feedbackCollection = client.db("EduManageDb").collection("feedback");
     
 
     // jwt releated api
     app.post('/jwt',async(req,res)=>{
         const user = req.body;
-        const token = jwt.sign(user,process.env.ACCESS_SECRET_TOKEN,{expiresIn:'1h'});
+        const token = jwt.sign(user,process.env.ACCESS_SECRET_TOKEN,{expiresIn:'10h'});
         res.send({token});
       })
 
@@ -56,7 +57,7 @@ async function run() {
         
          jwt.verify(token,process.env.ACCESS_SECRET_TOKEN,(error,decoded)=>{
           if(error){
-            return res.status(401).send({message : 'forbidden access'})
+            return res.status(409).send({message : 'forbidden access'})
           }
         
           req.decoded = decoded 
@@ -76,7 +77,7 @@ async function run() {
     });
 
  
-  
+   
  
       app.get('/users', verifyToken, async (req, res) => {
         const search = req.query.search || ''; // Retrieve the search query parameter
@@ -108,6 +109,35 @@ async function run() {
         const result = await userCollection.updateOne(filter, updatedDoc);
         res.send(result);
       })
+
+
+
+      app.get('/popular-classes', async (req, res) => {
+        try {
+            // Aggregate to get the count of enrollments for each class
+            const popularClasses = await enrollCollection.aggregate([
+                {
+                    $group: {
+                        _id: "$classDetails._id", // Group by class ID
+                        enrollmentCount: { $sum: 1 }, // Count the number of enrollments for each class
+                        classDetails: { $first: "$classDetails" } // Get the class details
+                    }
+                },
+                {
+                    $sort: { enrollmentCount: -1 } // Sort by highest enrollment count
+                },
+                { $limit: 6 } // Limit to top 6 most popular classes
+            ]).toArray();
+    
+            // Return the popular classes with enrollment count
+            res.send(popularClasses);
+        } catch (err) {
+            console.error(err);
+            res.status(500).send('Error fetching popular classes');
+        }
+    });
+    
+    
 
 
 
@@ -482,9 +512,19 @@ app.get('/myEnroll/:email',async(req,res)=>{
   const result = await enrollCollection.find({email}).toArray();
   res.send(result);
 })
-
  
+ 
+app.post('/submitFeedback',async(req,res)=>{
+  const feedback = req.body;
+  const result = await feedbackCollection.insertOne(feedback);
+  res.send(result);
+});
 
+
+app.get('/feedback',async(req,res)=>{
+  const result = await feedbackCollection.find().toArray();
+  res.send(result);
+})
 
 
 
@@ -512,7 +552,8 @@ run().catch(console.dir);
  
 
 
-app.get('/',(req,res)=>{
+app.get('/',(req,res)=>{  
+
     res.send('boss is sitting')
 } )
 
