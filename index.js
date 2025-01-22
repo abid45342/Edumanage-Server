@@ -30,7 +30,7 @@ async function run() {
 
     const userCollection = client.db("EduManageDb").collection("users");
     const teacherRequestCollection = client.db("EduManageDb").collection("teacherRequests");
-    const teacherCollection = client.db("EduManageDb").collection("teacher");
+   
     const classCollection = client.db("EduManageDb").collection("classes");
     const enrollCollection = client.db("EduManageDb").collection("enrollClasses");
     const assignmentCollection = client.db("EduManageDb").collection("assignments");
@@ -179,7 +179,7 @@ async function run() {
       })
 
       // payment intent
-      app.post('/create-payment-intent',async(req,res)=>{
+      app.post('/create-payment-intent',verifyToken,async(req,res)=>{
         const {price}=req.body;
         const amount = parseInt(price*100);
    
@@ -260,7 +260,7 @@ async function run() {
   });
   
   
-  app.patch('/teacher-requests/resubmit/:email', async (req, res) => {
+  app.patch('/teacher-requests/resubmit/:email',verifyToken, async (req, res) => {
     const email = req.params.email;
     const reqdata = req.body;
     const filter = { email: email }; 
@@ -298,7 +298,7 @@ async function run() {
     })   
 
 
-app.patch('/updateRole/:email',async(req,res)=>{
+app.patch('/updateRole/:email',verifyToken,async(req,res)=>{
   const {email}=req.params;
   const {role}= req.body;
   try {
@@ -355,7 +355,7 @@ app.post('/addAssignment',async(req,res)=>{
   res.send(result);
 
 })
-app.get('/getAssignment/:clsid', async (req, res) => {
+app.get('/getAssignment/:clsid',verifyToken, async (req, res) => {
   const  {clsid}  = req.params;
   console.log(clsid) 
   try {
@@ -366,7 +366,7 @@ app.get('/getAssignment/:clsid', async (req, res) => {
     res.status(500).send({ error: "Failed to fetch assignments" });
   }
 }); 
-app.get('/getAssignmentCount/:classId', async (req, res) => { 
+app.get('/getAssignmentCount/:classId',verifyToken, async (req, res) => { 
   const { classId } = req.params; // Extract classId from the URL parameter
 
   try { 
@@ -388,7 +388,7 @@ app.get('/getAssignmentCount/:classId', async (req, res) => {
   }
 });
 
-app.get('/getSubmissionCount/:classId', async (req, res) => {
+app.get('/getSubmissionCount/:classId',verifyToken, async (req, res) => {
   try {
     const classId = req.params.classId; // Extract classId from the request parameters
     const query = { classId }; // Filter submissions by classId 
@@ -402,13 +402,13 @@ app.get('/getSubmissionCount/:classId', async (req, res) => {
 
 
 
-app.post('/submitAssignment',async(req,res)=>{
+app.post('/submitAssignment',verifyToken,async(req,res)=>{
   const assignment = req.body;
   const result = await submittionCollection.insertOne(assignment);
   res.send(result);
 })
 
-app.patch("/updateAssignmentCount/:classId", async (req, res) => {
+app.patch("/updateAssignmentCount/:classId", verifyToken,async (req, res) => {
   const { classId } = req.params;
 
   try {
@@ -447,17 +447,22 @@ app.patch("/updateAssignmentCount/:classId", async (req, res) => {
 
 
 
-app.get('/myclasses/:email',async(req,res)=>{
+app.get('/myclasses/:email',verifyToken,async(req,res)=>{
   const {email}= req.params;
   const classes = await classCollection.find({email}).toArray();
   res.send(classes);  
 }) 
+
+
 
 app.get('/classes',verifyToken,async(req,res)=>{
 
 const result = await classCollection.find().toArray();
 res.send(result); 
 })
+
+
+
 app.get('/Allclass',async(req,res)=>{
 
 const result = await classCollection.find().toArray();
@@ -482,7 +487,7 @@ app.patch('/class/update-status/:classId',verifyToken, async(req,res)=>{
 
 })  
 
-app.patch('/classes/:id',async(req,res)=>{
+app.patch('/classes/:id',verifyToken,async(req,res)=>{
   const id = req.params.id;
   const updatedClass = req.body;
   console.log(updatedClass);
@@ -504,7 +509,7 @@ app.patch('/classes/:id',async(req,res)=>{
 })
 
 
-app.delete('/classes/:id',async(req,res)=>{
+app.delete('/classes/:id',verifyToken,async(req,res)=>{
 
   const id = req.params.id;
   const query = { _id: new ObjectId(id) }
@@ -514,12 +519,12 @@ app.delete('/classes/:id',async(req,res)=>{
 
 
 //
-app.post('/allEnroll',async(req,res)=>{
+app.post('/allEnroll',verifyToken,async(req,res)=>{
   const enrollClass = req.body;
   const result = await enrollCollection.insertOne(enrollClass);
   res.send(result)
 })
-app.get('/myEnroll/:email',async(req,res)=>{
+app.get('/myEnroll/:email',verifyToken,async(req,res)=>{
   const {email}  = req.params;
   console.log(email) 
   
@@ -528,7 +533,7 @@ app.get('/myEnroll/:email',async(req,res)=>{
 })
  
  
-app.post('/submitFeedback',async(req,res)=>{
+app.post('/submitFeedback',verifyToken,async(req,res)=>{
   const feedback = req.body;
   const result = await feedbackCollection.insertOne(feedback);
   res.send(result);
