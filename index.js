@@ -37,6 +37,7 @@ async function run() {
     const assignmentCollection = client.db("EduManageDb").collection("assignments");
     const submittionCollection = client.db("EduManageDb").collection("submitted");
     const feedbackCollection = client.db("EduManageDb").collection("feedback");
+    const videoCollection = client.db("EduManageDb").collection("videos");
     
 
     // jwt releated api
@@ -513,6 +514,15 @@ res.send(result);
 })
 
 
+app.get('/class/:clsId',async(req,res)=>{
+  const clsId = req.params.clsId;
+  const query ={_id:new ObjectId(clsId)};
+  const result = await classCollection.findOne(query);
+  console.log(result);
+  res.send(result);
+})
+
+
 
 app.get('/Allclass',async(req,res)=>{
 
@@ -558,6 +568,16 @@ app.patch('/classes/:id',verifyToken,async(req,res)=>{
 
 
 })
+app.patch('/classs/:classId',async(req,res)=>{
+  const classId = req.params.classId;
+  const {moduleId , newVideo}=req.body;
+  const filter = {_id: new ObjectId(classId),"modules.id":moduleId};
+  const updateDoc = {
+    $push:{ "modules.$.videos": newVideo }
+  };
+  const result = await classCollection.updateOne(filter,updateDoc);
+  res.send(result);
+})
 
 
 app.delete('/classes/:id',verifyToken,async(req,res)=>{
@@ -595,6 +615,35 @@ app.get('/feedback',async(req,res)=>{
   const result = await feedbackCollection.find().toArray();
   res.send(result);
 })
+
+
+
+app.post('/uploadVideo',async(req,res)=>{
+  const videoData = req.body;
+  const result = await videoCollection.insertOne(videoData);
+  res.send(result);
+
+})
+
+
+app.get('/videos/:classId',async(req,res)=>{
+  const classId = req.params.classId;
+  console.log(classId);
+  const query = { classId: classId };
+  const result = await videoCollection.find(query).toArray();
+  res.send(result);
+});
+app.patch('/class/:classId',async(req,res)=>{
+  const classId = req.params.classId;
+  const {newModule}=req.body;
+  const filter = {_id: new ObjectId(classId)};
+  const updateDoc = {
+    $push:{modules:newModule}
+  };
+  const result = await classCollection.updateOne(filter,updateDoc);
+  res.send(result);
+    
+  })
 
 
 
